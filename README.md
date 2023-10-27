@@ -6,7 +6,7 @@ Test task from SilkwayTransit
 2. ```cd railways```
 3. ```python manage.py migrate```
 
-## To run import via simple max_match algo
+## To run import via simple Max Prefix Matching algo
 4. ```python manage.py import_data```
 5. ```python manage.py runserver```
 6. open localhost:8000 on your web browser
