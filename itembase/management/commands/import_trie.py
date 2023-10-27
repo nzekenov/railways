@@ -3,28 +3,64 @@ import os
 import pandas as pd
 from itembase.models import Item
 
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.is_end_of_word = False
+        self.code = None
+
+class Trie:
+    def __init__(self):
+        self.root = TrieNode()
+
+    def insert(self, code):
+        node = self.root
+        for char in code:
+            if char not in node.children:
+                node.children[char] = TrieNode()
+            node = node.children[char]
+        node.is_end_of_word = True
+        node.code = code
+
+    def find_closest_parent(self, code):
+        node = self.root
+        for char in code:
+            if char in node.children:
+                node = node.children[char]
+            else:
+                break
+        while node and not node.is_end_of_word:
+            # Traverse up the trie to find the closest parent
+            node = next(iter(node.children.values()), None)
+        return node.code if node else None
+
 class Command(BaseCommand):
     help = 'Imports data from Excel into the database'
 
     def handle(self, *args, **kwargs):
         file_path = 'data/file.xlsx'
 
-        # Ensure the file exists
         if not os.path.exists(file_path):
             self.stdout.write(self.style.ERROR(f"File {file_path} does not exist."))
             return
 
-        # Load the Excel data
         xls = pd.ExcelFile(file_path)
         df_list1 = xls.parse("Лист1")
+        df_list1["Номер схемы"] = df_list1["Номер схемы"].astype(str).str.split().str[0].str.strip()
+        df_list1["Чертежный номер"] = df_list1["Чертежный номер"].astype(str).str.strip()
 
-        # Split the values in column C and take the first part
-        df_list1["Номер схемы"] = df_list1["Номер схемы"].str.split().str[0].str.strip()
-
-        # Populate the Django model
+        trie = Trie()
         items = {}
+
         for _, row in df_list1.iterrows():
             parent_code, child_code = row["Номер схемы"], row["Чертежный номер"]
+
+            # If the parent code is an orphan, find its closest parent using the Trie
+            if parent_code in ["PJ350171001", "PJ350263631"]:
+                closest_parent_code = trie.find_closest_parent(parent_code)
+                if closest_parent_code:
+                    parent_code = closest_parent_code
+
             if parent_code not in items:
                 parent_item, _ = Item.objects.get_or_create(code=parent_code)
                 parent_item.scheme_name = row["Наименование схемы"]
@@ -33,6 +69,7 @@ class Command(BaseCommand):
                 parent_item.quantity = row["Количество"]
                 parent_item.save()
                 items[parent_code] = parent_item
+                trie.insert(parent_code)
 
             if child_code not in items:
                 child_item, _ = Item.objects.get_or_create(code=child_code)
@@ -43,5 +80,6 @@ class Command(BaseCommand):
                 child_item.parent = items[parent_code]
                 child_item.save()
                 items[child_code] = child_item
+                trie.insert(child_code)
 
         self.stdout.write(self.style.SUCCESS(f"Successfully imported data from {file_path} into the Item model!"))
