@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Tree visualization{% endblock %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'jstree_styles.css' %}" />
+{% endblock %}
+
+{% block content %}
+    <h2>This visualization uses simple self-referencing of Item model simply based on the code of item</h2>
+<div id="jstree"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+<script src="{% static 'jstree_script.js' %}"></script>
+{% endblock %}
